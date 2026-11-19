@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vice City Cover Maker</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="masthead">
+    <div class="mark" aria-hidden="true">V</div>
+    <h1>Vice City <span>Cover Maker</span></h1>
+    <span class="edition">OCEAN DRIVE STUDIO <b> / </b> 01</span>
+  </header>
+  <main class="workspace">
+    <section class="preview" aria-label="Live preview">
+      <div class="rail"><span><i></i> LIVE PREVIEW</span><output id="dimensions"></output></div>
+      <div class="stage"><canvas id="cover" aria-label="Cover artwork"></canvas></div>
+      <div class="rail foot"><span>ARTBOARD 01</span><span>VICE CITY / 2026</span></div>
+    </section>
+    <aside class="controls" aria-label="Cover controls">
+      <div class="inspector">
+        <section class="group">
+          <h2><b>01</b> Composition</h2>
+          <div class="pair">
+            <label>Format<select id="format"><option value="square">Square · 1080 × 1080</option><option value="portrait">Portrait · 1080 × 1350</option><option value="landscape">Landscape · 1920 × 1080</option></select></label>
+            <label>Layout<select id="layout"><option value="collage">Collage</option><option value="filmstrip">Filmstrip 5</option><option value="classic">Classic 3</option></select></label>
+          </div>
+          <label for="grade">Color grade</label>
+          <div class="grade"><select id="grade"><option>Classic Sunset</option><option>Cyber Neon</option><option>Miami Gold</option><option>Vice Nights</option></select><div id="swatches" aria-hidden="true"></div></div>
+        </section>
+        <section class="group">
+          <h2><b>02</b> Cover lines</h2>
+          <div class="pair">
+            <label>Title<input id="title" maxlength="42" value="SUNSET HEIST"></label>
+            <label>Tagline<input id="tagline" maxlength="64" value="NO RULES • ONLY HORIZONS"></label>
+          </div>
+        </section>
+        <section class="group">
+          <h2><b>03</b> Photo panels</h2>
+          <div id="panel-tabs" role="group" aria-label="Select photo panel"></div>
+          <div id="panels"></div>
+        </section>
+      </div>
+      <section class="export group">
+        <h2><b>04</b> Export PNG</h2>
+        <div class="exports">
+          <button data-size="square">↓ Square</button>
+          <button data-size="portrait">↓ Portrait</button>
+          <button data-size="landscape">↓ Landscape</button>
+        </div>
+        <p id="status" role="status"></p>
+      </section>
+    </aside>
+  </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
