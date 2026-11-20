@@ -1,196 +1,179 @@
-import { drawCover, grades, panelCount, clamp } from './cover.js';
-import { formats, shotSettings, samplePanels } from './shots.js';
+import { drawCover, grades } from './cover.js';
+import { configureShot, formats, signalReady } from './shots.js';
 
-const byId = id => document.getElementById(id);
-const canvas = byId('cover');
-const status = byId('status');
-const settings = shotSettings(new URLSearchParams(location.search));
-const state = { layout:'collage', grade:'Classic Sunset', title:settings.title, tagline:byId('tagline').value, panels:[] };
-const samples = {};
-let active = 0, hits = [], frame, drag;
-const sliders = ['zoom','panX','panY'];
+const canvas = document.getElementById('cover');
+const state = {
+  layout: 'Collage',
+  grade: 'Classic Sunset',
+  title: 'SUNSET HEIST',
+  tagline: 'NO RULES • ONLY HORIZONS',
+  format: 'square',
+  panels: [],
+};
+let rectangles = [];
 
 function loadImage(url) {
-  const image = new Image();
-  image.src = url;
-  return image.decode().then(() => image);
-}
-
-function render() {
-  const [w,h] = formats[byId('format').value];
-  if (canvas.width !== w) canvas.width = w;
-  if (canvas.height !== h) canvas.height = h;
-  canvas.style.setProperty('--ratio',w/h);
-  byId('dimensions').textContent = w + ' × ' + h + ' PX';
-  hits = drawCover(canvas,state);
-}
-function update() {
-  cancelAnimationFrame(frame);
-  frame = requestAnimationFrame(render);
-}
-
-const tabs = byId('panel-tabs');
-const sections = byId('panels');
-function syncPanel(i) {
-  const section = sections.children[i];
-  sliders.forEach(key => {
-    section.querySelector('[name="' + key + '"]').value = state.panels[i][key];
-    section.querySelector('[data-value="' + key + '"]').textContent = state.panels[i][key].toFixed(2);
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Unable to load ${url}`));
+    image.src = url;
   });
 }
-function selectPanel(i) {
-  active = i;
-  Array.from(tabs.children).forEach((tab,j) => {
-    tab.hidden = j >= panelCount[state.layout];
-    tab.setAttribute('aria-pressed',String(i === j));
-    sections.children[j].hidden = i !== j;
-  });
-}
-function makePanels() {
-  state.panels.forEach((p,i) => {
-    const tab = document.createElement('button');
-    tab.textContent = i ? String(i+1).padStart(2,'0') : 'Hero';
-    tab.setAttribute('aria-controls','panel-' + i);
-    tab.onclick = () => selectPanel(i);
-    tabs.append(tab);
 
-    const section = document.createElement('section');
-    section.id = 'panel-' + i;
-    section.innerHTML = '<label><span class="panel-name">' + (i ? 'Panel ' + (i+1) : 'Hero panel') + '</span><input type="file" accept="image/*"></label><div class="sample-buttons"><button data-sample="pier">Pier Sample</button><button data-sample="boulevard">Boulevard Sample</button></div>' +
-      sliders.map((key,j) => '<label class="slider"><span>' + ['Zoom','Pan X','Pan Y'][j] + '</span><input name="' + key + '" type="range" min="' + (j ? 0 : .5) + '" max="' + (j ? 1 : 3) + '" step="' + (j ? .01 : .05) + '"><output data-value="' + key + '" aria-hidden="true"></output></label>').join('');
-    const file = section.querySelector('[type=file]');
-    let revision = 0;
-    file.onchange = async () => {
-      if (!file.files[0]) return;
-      const id = ++revision;
-      const url = URL.createObjectURL(file.files[0]);
-      try {
-        const image = await loadImage(url);
-        if (id === revision) replace(image,true);
-      } catch {
-        if (id === revision) status.textContent = 'Could not open that image.';
-      } finally { URL.revokeObjectURL(url); }
-    };
-    function replace(image,upload) {
-      Object.assign(p,{ image, zoom:1, panX:.5, panY:upload ? .5 : .2 });
-      if (!upload) file.value = '';
-      status.textContent = '';
-      syncPanel(i);
-      update();
-    }
-    section.querySelectorAll('[data-sample]').forEach(button => {
-      button.onclick = () => {
-        revision++;
-        replace(samples[button.dataset.sample],false);
-      };
-    });
-    section.querySelectorAll('[type=range]').forEach(input => {
-      input.oninput = () => {
-        p[input.name] = input.valueAsNumber;
-        syncPanel(i);
-        update();
-      };
-    });
-    sections.append(section);
-    syncPanel(i);
-  });
-  selectPanel(0);
+function redraw() {
+  [canvas.width, canvas.height] = formats[state.format];
+  rectangles = drawCover(canvas, state);
+  document.getElementById('dimensions').textContent = `${canvas.width} × ${canvas.height} PX`;
 }
 
-function pointer(event) {
-  const box = canvas.getBoundingClientRect();
-  return [(event.clientX-box.left)*canvas.width/box.width,(event.clientY-box.top)*canvas.height/box.height];
-}
-function local(x,y,hit) {
-  const dx=x-hit.cx, dy=y-hit.cy, cos=Math.cos(hit.a), sin=Math.sin(hit.a);
-  return [dx*cos+dy*sin,dy*cos-dx*sin];
-}
-canvas.addEventListener('pointerdown',event => {
-  if (settings.cover || event.button !== 0 || drag) return;
-  const [x,y] = pointer(event);
-  const hit = hits.findLast(item => {
-    const [u,v] = local(x,y,item);
-    return Math.abs(u) <= item.pw/2 && Math.abs(v) <= item.ph/2;
-  });
-  if (!hit || hit.id < 0) return;
-  selectPanel(hit.id);
-  const p = state.panels[hit.id];
-  drag = { hit, p, from:local(x,y,hit), x:p.panX, y:p.panY, id:event.pointerId };
-  canvas.setPointerCapture(event.pointerId);
-});
-canvas.addEventListener('pointermove',event => {
-  if (drag?.id !== event.pointerId) return;
-  const { hit,p,from,x,y } = drag;
-  const [u,v] = local(...pointer(event),hit);
-  const { naturalWidth:iw, naturalHeight:ih } = p.image;
-  const scale = Math.max(hit.pw/iw,hit.ph/ih)*p.zoom;
-  const dx = iw*scale-hit.pw, dy = ih*scale-hit.ph;
-  p.panX = clamp(x-(u-from[0])/Math.max(dx,1));
-  p.panY = clamp(y-(v-from[1])/Math.max(dy,1));
-  syncPanel(hit.id);
-  update();
-});
-canvas.addEventListener('lostpointercapture',event => {
-  if (drag?.id === event.pointerId) drag = null;
-});
-
-function swatches() {
-  byId('swatches').replaceChildren(...grades[state.grade].slice(0,3).map(color => {
-    const dot = document.createElement('i');
-    dot.style.background = color;
-    return dot;
-  }));
+function setStatus(message) {
+  document.getElementById('status').textContent = message;
 }
 
-async function start() {
-  if (settings.cover) document.body.classList.add('shot-cover');
-  byId('title').value = state.title;
-  byId('format').value = settings.size;
-  await Promise.all([
-    document.fonts.load('20px Anton'),
-    ...['pier','boulevard'].map(async key => { samples[key] = await loadImage('./samples/' + key + '.jpg'); })
+async function initialize() {
+  const [pier, boulevard] = await Promise.all([
+    loadImage('./samples/pier.jpg'),
+    loadImage('./samples/boulevard.jpg'),
   ]);
-  state.panels = samplePanels(samples,settings.sample);
-  makePanels();
-  swatches();
-  byId('format').onchange = update;
-  byId('layout').onchange = event => {
-    state.layout = event.target.value;
-    selectPanel(Math.min(active,panelCount[state.layout]-1));
-    update();
-  };
-  byId('grade').onchange = event => {
-    state.grade = event.target.value;
-    swatches();
-    update();
-  };
-  for (const key of ['title','tagline']) byId(key).oninput = event => {
-    state[key] = event.target.value;
-    update();
-  };
-  document.querySelectorAll('[data-size]').forEach(button => {
-    const [w,h] = formats[button.dataset.size];
-    button.title = w + ' × ' + h + ' PNG';
-    button.onclick = () => {
-      const output = document.createElement('canvas');
-      output.width = w;
-      output.height = h;
-      drawCover(output,state);
-      output.toBlob(blob => {
-        if (!blob) { status.textContent = 'PNG export failed.'; return; }
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'vice-city-' + w + 'x' + h + '.png';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href),1000);
-        status.textContent = 'Exported ' + w + ' × ' + h + ' PNG.';
-      },'image/png');
-    };
+  await document.fonts.load('24px Anton');
+  const samples = { pier, boulevard };
+  configureShot(state, new URLSearchParams(location.search), samples);
+  for (const key of ['format', 'layout', 'title', 'tagline']) {
+    const input = document.getElementById(key);
+    input.value = state[key];
+    input.addEventListener('input', () => {
+      state[key] = input.value;
+      redraw();
+    });
+  }
+  Object.entries(grades).forEach(([name, colors]) => {
+    const button = document.createElement('button');
+    button.className = `grade${name === state.grade ? ' active' : ''}`;
+    button.type = 'button';
+    button.innerHTML = `<b style="--a:${colors[0]};--b:${colors[1]}"></b>${name}`;
+    button.addEventListener('click', () => {
+      state.grade = name;
+      document.querySelectorAll('.grade').forEach(item => item.classList.toggle('active', item === button));
+      redraw();
+    });
+    document.getElementById('grades').append(button);
   });
-  render();
-  requestAnimationFrame(() => { window.__shotReady = true; });
+  state.panels.forEach((panel, index) => {
+    const details = document.createElement('details');
+    details.open = index === 0;
+    const summary = document.createElement('summary');
+    summary.textContent = `${String(index + 1).padStart(2, '0')} / ${index === 0 ? 'Hero photograph' : 'Supporting photograph'}`;
+    details.append(summary);
+    const body = document.createElement('div');
+    body.className = 'panel-body';
+    const uploadLabel = document.createElement('label');
+    uploadLabel.textContent = 'UPLOAD YOUR PHOTO';
+    const upload = document.createElement('input');
+    upload.type = 'file';
+    upload.accept = 'image/*';
+    upload.addEventListener('change', async () => {
+      const file = upload.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      try {
+        panel.image = await loadImage(url);
+        redraw();
+        setStatus(`Panel ${index + 1} updated.`);
+      } catch {
+        setStatus('Could not read this image. Try another photo.');
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    });
+    uploadLabel.append(upload);
+    body.append(uploadLabel);
+    const buttons = document.createElement('div');
+    buttons.className = 'sample-buttons';
+    for (const name of ['pier', 'boulevard']) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = `${name === 'pier' ? 'Pier' : 'Boulevard'} Sample`;
+      button.addEventListener('click', () => {
+        panel.image = samples[name];
+        redraw();
+      });
+      buttons.append(button);
+    }
+    body.append(buttons);
+    for (const [key, text] of [['zoom', 'ZOOM'], ['panX', 'PAN X'], ['panY', 'PAN Y']]) {
+      const label = document.createElement('label');
+      const value = document.createElement('span');
+      value.textContent = `${text} · ${panel[key].toFixed(2)}`;
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = key === 'zoom' ? '0.5' : '0';
+      slider.max = key === 'zoom' ? '3' : '1';
+      slider.step = key === 'zoom' ? '0.05' : '0.01';
+      slider.value = panel[key];
+      slider.dataset.panel = index;
+      slider.dataset.key = key;
+      slider.addEventListener('input', () => {
+        panel[key] = Number(slider.value);
+        value.textContent = `${text} · ${panel[key].toFixed(2)}`;
+        redraw();
+      });
+      label.append(value, slider);
+      body.append(label);
+    }
+    details.append(body);
+    document.getElementById('panels').append(details);
+  });
+  for (const [name, [width, height]] of Object.entries(formats)) {
+    const button = document.createElement('button');
+    button.textContent = `↓ Export ${name} · ${width} × ${height}`;
+    button.addEventListener('click', () => {
+      const output = document.createElement('canvas');
+      output.width = width;
+      output.height = height;
+      drawCover(output, state);
+      output.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `vice-city-${width}x${height}.png`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setStatus(`Exported ${width} × ${height} PNG.`);
+      }, 'image/png');
+    });
+    document.getElementById('exports').append(button);
+  }
+  let drag = null;
+  canvas.addEventListener('pointerdown', event => {
+    const box = canvas.getBoundingClientRect();
+    const x = (event.clientX - box.left) * canvas.width / box.width;
+    const y = (event.clientY - box.top) * canvas.height / box.height;
+    const rect = [...rectangles].reverse().find(item => !item.scene && x >= item.x && x <= item.x + item.w && y >= item.y && y <= item.y + item.h);
+    if (!rect || y > canvas.height * 0.755) return;
+    const index = (rect.photoIndex || 0) % 6;
+    drag = { index, x: event.clientX, y: event.clientY, panX: state.panels[index].panX, panY: state.panels[index].panY };
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (!drag) return;
+    const panel = state.panels[drag.index];
+    panel.panX = Math.max(0, Math.min(1, drag.panX - (event.clientX - drag.x) / 200));
+    panel.panY = Math.max(0, Math.min(1, drag.panY - (event.clientY - drag.y) / 200));
+    for (const key of ['panX', 'panY']) {
+      const input = document.querySelector(`[data-panel="${drag.index}"][data-key="${key}"]`);
+      input.value = panel[key];
+      input.previousSibling.textContent = `${key === 'panX' ? 'PAN X' : 'PAN Y'} · ${panel[key].toFixed(2)}`;
+    }
+    redraw();
+  });
+  canvas.addEventListener('pointerup', () => { drag = null; });
+  canvas.addEventListener('pointercancel', () => { drag = null; });
+  redraw();
+  await signalReady();
 }
-start().catch(error => {
-  status.textContent = 'Unable to load the cover assets.';
+
+initialize().catch(error => {
+  setStatus(error.message);
   console.error(error);
 });
