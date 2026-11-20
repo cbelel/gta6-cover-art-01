@@ -4,53 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vice City Cover Maker</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <header class="masthead">
-    <div class="mark" aria-hidden="true">V</div>
-    <h1>Vice City <span>Cover Maker</span></h1>
-    <span class="edition">OCEAN DRIVE STUDIO <b> / </b> 01</span>
+    <a class="brand" href="./"><span class="brand-icon">V<span>C</span></span><span>VICE CITY<small>COVER MAKER</small></span></a>
+    <div class="edition">THE AFTER HOURS EDITION <span> / </span> VOL. 01</div>
+    <span class="local"><i></i> ALL LOCAL. ALL YOURS.</span>
   </header>
   <main class="workspace">
-    <section class="preview" aria-label="Live preview">
-      <div class="rail"><span><i></i> LIVE PREVIEW</span><output id="dimensions"></output></div>
-      <div class="stage"><canvas id="cover" aria-label="Cover artwork"></canvas></div>
-      <div class="rail foot"><span>ARTBOARD 01</span><span>VICE CITY / 2026</span></div>
+    <section class="studio">
+      <div class="studio-heading"><span><i></i> LIVE PREVIEW</span><span id="dimensions">1080 × 1080 PX</span></div>
+      <div class="canvas-wrap"><canvas id="cover" width="1080" height="1080" aria-label="Your cover preview. Drag a photo to reposition it."></canvas></div>
+      <div class="preview-foot"><span>↔ Drag a panel to frame your shot</span><span>MADE FOR THE MAIN CHARACTER.</span></div>
     </section>
-    <aside class="controls" aria-label="Cover controls">
-      <div class="inspector">
-        <section class="group">
-          <h2><b>01</b> Composition</h2>
-          <div class="pair">
-            <label>Format<select id="format"><option value="square">Square · 1080 × 1080</option><option value="portrait">Portrait · 1080 × 1350</option><option value="landscape">Landscape · 1920 × 1080</option></select></label>
-            <label>Layout<select id="layout"><option value="collage">Collage</option><option value="filmstrip">Filmstrip 5</option><option value="classic">Classic 3</option></select></label>
-          </div>
-          <label for="grade">Color grade</label>
-          <div class="grade"><select id="grade"><option>Classic Sunset</option><option>Cyber Neon</option><option>Miami Gold</option><option>Vice Nights</option></select><div id="swatches" aria-hidden="true"></div></div>
-        </section>
-        <section class="group">
-          <h2><b>02</b> Cover lines</h2>
-          <div class="pair">
-            <label>Title<input id="title" maxlength="42" value="SUNSET HEIST"></label>
-            <label>Tagline<input id="tagline" maxlength="64" value="NO RULES • ONLY HORIZONS"></label>
-          </div>
-        </section>
-        <section class="group">
-          <h2><b>03</b> Photo panels</h2>
-          <div id="panel-tabs" role="group" aria-label="Select photo panel"></div>
-          <div id="panels"></div>
-        </section>
-      </div>
-      <section class="export group">
-        <h2><b>04</b> Export PNG</h2>
-        <div class="exports">
-          <button data-size="square">↓ Square</button>
-          <button data-size="portrait">↓ Portrait</button>
-          <button data-size="landscape">↓ Landscape</button>
-        </div>
-        <p id="status" role="status"></p>
-      </section>
+    <aside class="controls">
+      <div class="intro"><span class="eyebrow">YOUR PHOTOS. YOUR FRONT PAGE.</span><h1>Make a scene.</h1><p>A little sun. A little trouble. A cover that's all you.</p></div>
+      <section class="control-section"><h2><span>01</span> Set the stage</h2><div class="two-col"><label>FORMAT<select id="format"><option value="square">Square · 1:1</option><option value="portrait">Portrait · 4:5</option><option value="landscape">Landscape · 16:9</option></select></label><label>LAYOUT<select id="layout"><option>Collage</option><option>Filmstrip 5</option><option>Classic 3</option></select></label></div></section>
+      <section class="control-section"><h2><span>02</span> Find your color</h2><div id="grades" class="grades"></div></section>
+      <section class="control-section"><h2><span>03</span> Write the headline</h2><label>TITLE<input id="title" value="SUNSET HEIST" maxlength="32"></label><label>TAGLINE<input id="tagline" value="NO RULES • ONLY HORIZONS" maxlength="65"></label></section>
+      <section class="control-section"><h2><span>04</span> Cast your cover <small>SELECT A PANEL</small></h2><div id="panels"></div></section>
+      <section class="export-section"><h2>Ready for the spotlight?</h2><p>Full resolution PNG. No watermark. Just you.</p><div id="exports"></div><p id="status" role="status">Your photos stay in your browser.</p></section>
     </aside>
   </main>
   <script type="module" src="./src/main.js"></script>
